@@ -1,77 +1,123 @@
-# Soccer Star — arquitetura multiplayer servidor-autoritativo
+# Soccer Stars Lab
 
-Implementação de referência em C# sem dependência de engine. O núcleo usa `System.Numerics.Vector3`; Unity/Godot/Unreal/engine própria entram apenas por adapters que implementam as interfaces em `Client/Interfaces.cs` e `Server/Interfaces.cs`.
+Standalone C++ sandbox used to develop and test an ImGui-based control panel
+without depending on any external game process.
 
-## Locais de integração
+The project separates the UI from the simulated engine through the
+`IGameEngine` interface.
 
-- `src/Shared`: tipos, mensagens de rede e limites compartilhados.
-- `src/Server`: roteamento de mensagens, rate limiting, anti-cheat, validação de chute, matchmaking e estado de partida.
-- `src/Client`: input, mira assistida, Auto Play, linha visual e menu.
+## Architecture
 
-## Regras de segurança
+```text
+MenuRenderer
+     |
+     v
+IGameEngine
+     ^
+     |
+MockGameEngine
+```
 
-1. Cliente nunca aplica física autoritativa, moedas, placar ou XP.
-2. Todo pacote possui `Sequence` para bloquear replay/duplicação simples.
-3. O servidor valida tipo/faixa, distância, direção, cooldown, rate-limit e permissões.
-4. Configurações de assistência são normalizadas pelo servidor; o cliente não pode reduzir limites mínimos.
-5. Matchmaking reserva moedas no servidor antes da criação da partida.
-6. Destaque de moderação exige permissão no servidor e é enviado somente ao moderador.
+The UI knows only the interface. `MockGameEngine` provides a safe standalone
+simulation that writes actions to the console.
 
-## Adaptação por engine
+## Features
 
-Implemente:
+- Dear ImGui UI
+- SDL2 renderer
+- CMake build
+- Abstract `IGameEngine` contract
+- `MockGameEngine` test implementation
+- Auto Play state simulation
+- Semi / Full modes
+- Force control
+- Action interval
+- Auto Queue state
+- Match start / shot / end simulation
+- Console logs
+- Linux / Android-Termux oriented C++ code
 
-- `IServerTransport`: WebSocket/UDP confiável/custom RPC.
-- `IWorldPhysics`: física no processo autoritativo do servidor.
-- `IPlayerRepository`: banco transacional/atômico.
-- `IInputSource`: teclado/controle/touch.
-- `IClientWorld`: leitura do snapshot interpolado do cliente.
-- `ILineRenderer`: renderização local da linha de mira.
-- `IOverlayUi`: menu flutuante da engine.
-
-## Controles
-
-- Shoot: PC `F`; Mobile botão Shoot.
-- Pass: PC `R`; Mobile botão Pass.
-- Tackle: PC `E`; Mobile botão Tackle.
-- Spin: PC `Q`; Mobile botão Spin.
-- Dash: PC `Shift`; Mobile botão Dash.
-
-## Observação de produção
-
-Para produção, use snapshots com interpolação/reconciliação, TLS/DTLS conforme transporte, autenticação de sessão, limite de tamanho de pacote antes da desserialização, banco com transações e idempotência por `matchId`/`reservationId`, logs estruturados e métricas. Nunca deixe o cliente enviar posição final, placar, saldo ou XP.
-
-## Compilação com Termux e GitHub
-
-Este repositório inclui `SoccerStar.Core.csproj` com alvo `net8.0`.
-
-### Termux
+## Termux dependencies
 
 ```bash
 pkg update
-pkg install -y git dotnet-sdk-8.0
+pkg upgrade
 
-git clone URL_DO_SEU_REPOSITORIO.git
-cd soccer-star
-chmod +x scripts/build-termux.sh
-./scripts/build-termux.sh
+pkg install git clang cmake ninja pkg-config
+pkg install x11-repo
+pkg update
+pkg install sdl2
 ```
 
-Ou diretamente:
+A graphical X11 environment is required to display the SDL2 window from Termux.
+
+## Build
 
 ```bash
-dotnet restore SoccerStar.Core.csproj
-dotnet build SoccerStar.Core.csproj -c Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j4
 ```
 
-A DLL gerada fica em:
+Run:
+
+```bash
+./build/soccer_stars_lab
+```
+
+## Release build
+
+```bash
+cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release -j4
+```
+
+## GitHub
+
+After extracting this repository:
+
+```bash
+git init
+git add .
+git commit -m "feat: initial standalone engine sandbox"
+git branch -M main
+git remote add origin https://github.com/SEU-USUARIO/SEU-REPOSITORIO.git
+git push -u origin main
+```
+
+## Project layout
 
 ```text
-bin/Release/net8.0/SoccerStar.Core.dll
+soccer-stars-lab/
+├── CMakeLists.txt
+├── README.md
+├── .gitignore
+└── src/
+    ├── main.cpp
+    ├── engine/
+    │   ├── GameState.h
+    │   ├── IGameEngine.h
+    │   ├── MockGameEngine.h
+    │   └── MockGameEngine.cpp
+    └── ui/
+        ├── MenuRenderer.h
+        └── MenuRenderer.cpp
 ```
 
-### GitHub Actions
+## Scope
 
-O workflow `.github/workflows/build.yml` executa restore e build a cada push ou pull request e publica o diretório compilado como artifact `soccer-star-core-net8`.
+This repository is a standalone simulation/test harness. It does not inject
+code into, read memory from, or modify another application.
 
-> Observação: esta compilação gera a biblioteca do núcleo multiplayer. Para gerar APK, executável de desktop ou cliente jogável ainda é necessário criar o adapter/projeto da engine escolhida (Unity, Godot, Unreal ou engine própria).
+## Publish to OneModz/soccer-star
+
+From the extracted project directory in Termux:
+
+```bash
+chmod +x scripts/push_to_github.sh
+./scripts/push_to_github.sh
+```
+
+The script clones or updates `https://github.com/OneModz/soccer-star`,
+copies the sandbox files into the repository, creates a commit, and pushes
+to the `main` branch. GitHub authentication must already be configured in
+Termux.
