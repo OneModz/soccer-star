@@ -22,3 +22,7 @@ Thumbs.db
 
 logs/
 configs/*.json
+
+bin/
+obj/
+build-cpp/
