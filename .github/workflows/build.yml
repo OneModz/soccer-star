@@ -1,0 +1,43 @@
+name: build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Show SDK
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore SoccerStar.Core.csproj
+
+      - name: Build Release
+        run: dotnet build SoccerStar.Core.csproj -c Release --no-restore
+
+      - name: Pack build output
+        run: |
+          mkdir -p artifact
+          cp -r bin/Release/net8.0/* artifact/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: soccer-star-core-net8
+          path: artifact/
+          if-no-files-found: error
